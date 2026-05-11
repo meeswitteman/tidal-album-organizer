@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Database & sessions
+*.db
+*.sqlite
+tidal_session.json
+
+# Frontend build
+frontend/node_modules/
+frontend/dist/
+
+# IDE & local tooling
+.idea/
+.vscode/
+.claude/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
