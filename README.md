@@ -28,7 +28,7 @@ Een lokale desktop-webapplicatie voor Windows om je Tidal-albumbibliotheek te be
   - Jaar van / tot
   - Genre (multi-select, gekoppeld via MusicBrainz)
   - Dolby Atmos (toont alleen albums met Atmos-ondersteuning)
-- **Genres ophalen** — achtergrondtaak die via MusicBrainz genres ophaalt en opslaat voor alle albums in de bibliotheek (1 verzoek/seconde vanwege rate limiting); voortgang zichtbaar in de toolbar
+- **Genres ophalen** — achtergrondtaak die via MusicBrainz genres én review-links ophaalt voor alle albums zonder deze gegevens (1 verzoek/seconde vanwege rate limiting); voortgang zichtbaar als `12/347 · Stop`; klik nogmaals om te stoppen; albums die al verrijkt zijn worden overgeslagen
 
 ### Albumkaart
 - Klik op kaart → detail panel rechts
@@ -40,10 +40,21 @@ Een lokale desktop-webapplicatie voor Windows om je Tidal-albumbibliotheek te be
 - Albumhoes, titel, artiest, jaar, aantal tracks
 - Link om te openen in **Tidal-app** (`tidal://album/...`) en in de **browser**
 - **Genres** uit MusicBrainz
-- **Wikipedia-samenvatting** + link naar volledige pagina
+- **Review- en infosites** — directe links naar externe bronnen per album (AllMusic, Rate Your Music, Discogs, Last.fm, e.a.), opgehaald via MusicBrainz URL-relaties; voor albums zonder MusicBrainz-koppeling worden zoeklinks gegenereerd
+- **Wikipedia-samenvatting** + link naar volledige pagina (met fallback naar artiestpagina als albumpagina ontbreekt)
 - **Tags** beheren: toevoegen en verwijderen
-- **Notities**: vrije tekst, automatisch opgeslagen bij verlaten veld
 - **Tracklist** met tracknummer, titel en duur (live opgehaald via Tidal)
+  - Hover op een regel → **play-knop** verschijnt; klik om het nummer direct af te spelen in de ingebouwde audioplayer
+  - Hover lang op een afgekorte tracktitel → volledige titel als tooltip
+  - **Speel alles** — knop naast "Tracklist" om het hele album door te spelen
+- **Notities**: vrije tekst, automatisch opgeslagen bij verlaten veld
+
+### Audioplayer
+- Ingebouwde HTML5-audioplayer, speelt direct af via de Tidal-streaming-API (geen externe app nodig)
+- **Mini-player balk** onderaan het scherm: play/pause, tracknaam, artiest, tijdweergave en voortgangsbalk
+- Klik op de voortgangsbalk om naar een willekeurig punt te seekken
+- **Persistent**: spelen gaat door bij wisselen van album, lijst of pagina
+- **Auto-advance**: na elk nummer start het volgende automatisch
 
 ### Tags
 - Aanmaken met naam en kleur (kleurpalet of vrije hex-code)
@@ -134,10 +145,10 @@ De frontend wordt gebouwd naar `frontend/dist` en daarna geserveerd door FastAPI
 ### Externe API's
 
 | Dienst | Gebruik | Rate limit |
-|--------|---------|------------|
-| Tidal API | Albums, tracks, playlists, authenticatie | Via tidalapi |
-| Wikipedia REST API | Albumsamenvattingen | Geen officieel |
-| MusicBrainz API | Genres per album | 1 verzoek/seconde |
+|---|---|---|
+| Tidal API | Albums, tracks, playlists, authenticatie, streaming-URL's | Via tidalapi |
+| Wikipedia REST API + Search API | Albumsamenvattingen (met artiest-fallback) | Geen officieel |
+| MusicBrainz API | Genres en review-links (URL-relaties) per album | 1 verzoek/seconde |
 
 ---
 
@@ -237,9 +248,11 @@ Klik **Sync favorieten** in de toolbar. Importeert alle albums die je in Tidal a
 **Methode 2 — Her-import:**
 Klik **Her-import**. Haalt albums op uit zowel favorieten als alle eigen Tidal-playlists. Voegt alleen nieuwe albums toe, werkt bestaande bij.
 
-### Genres ophalen
+### Genres en review-links ophalen
 
-Klik **Genres ophalen** in de toolbar. De app zoekt via MusicBrainz genres op voor alle albums zonder genre (±1 seconde per album). Voortgang wordt getoond als `Genres 12/347`. Na afloop zijn genres beschikbaar in het genre-filter.
+Klik **Genres ophalen** in de toolbar. De app zoekt via MusicBrainz genres én review-links op voor alle albums die deze gegevens nog niet hebben (±1–2 seconden per album). Voortgang wordt getoond als `12/347 · Stop`. Klik nogmaals op de knop om het proces te stoppen. Albums die al volledig verrijkt zijn worden overgeslagen.
+
+Na afloop zijn genres beschikbaar als filter, en verschijnen review-links in het albumdetailpaneel.
 
 ### Zoeken en filteren
 
@@ -310,10 +323,14 @@ tidal-org/
 │   │   ├── api/client.ts        # Axios API-aanroepen
 │   │   ├── components/
 │   │   │   ├── AlbumCard.tsx    # Albumkaart (cover, badges, selectie)
-│   │   │   ├── AlbumDetail.tsx  # Detailpanel (wiki, genres, tags, tracklist)
+│   │   │   ├── AlbumDetail.tsx  # Detailpanel (wiki, genres, tags, tracklist, player)
+│   │   │   ├── MiniPlayer.tsx   # Persistente audioplayer balk (globaal)
 │   │   │   ├── PlaylistModal.tsx # Playlist aanmaken vanuit selectie
 │   │   │   ├── Sidebar.tsx      # Navigatie
-│   │   │   └── TagBadge.tsx     # Gekleurde tag-pill
+│   │   │   ├── TagBadge.tsx     # Gekleurde tag-pill
+│   │   │   └── TruncatedTitle.tsx # Titel met tooltip bij afkapping
+│   │   ├── context/
+│   │   │   └── PlayerContext.tsx # Globale audioplayer state en logica
 │   │   ├── pages/
 │   │   │   ├── Library.tsx      # Hoofdbibliotheek
 │   │   │   ├── AlbumLists.tsx   # Overzicht albumlijsten
@@ -339,9 +356,9 @@ tidal-org/
 De applicatie communiceert met drie externe diensten. Alle verzoeken worden vanuit de backend gedaan; de browser communiceert alleen met `localhost`.
 
 | Dienst | Endpoint | Privacy |
-|--------|----------|---------|
+|---|---|---|
 | Tidal API | `api.tidal.com` | Sessietoken opgeslagen lokaal in `tidal_session.json` |
-| Wikipedia | `en.wikipedia.org/api/rest_v1` | Alleen lezen, geen account vereist |
+| Wikipedia | `en.wikipedia.org/api/rest_v1` en `/w/api.php` | Alleen lezen, geen account vereist |
 | MusicBrainz | `musicbrainz.org/ws/2` | Alleen lezen, geen account vereist |
 
 Geen data wordt naar derden gestuurd buiten deze drie diensten om.
