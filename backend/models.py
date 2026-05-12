@@ -22,6 +22,7 @@ class Album(Base):
     num_tracks = Column(Integer)
     duration = Column(Integer)
     tidal_url = Column(String)
+    artist_id = Column(String, nullable=True)
     genres = Column(JSON, nullable=True)
     audio_modes = Column(JSON, nullable=True)
     mbid = Column(String, nullable=True)

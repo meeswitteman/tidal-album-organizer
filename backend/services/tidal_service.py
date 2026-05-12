@@ -160,6 +160,7 @@ class TidalService:
             "id": str(album.id),
             "title": album.name,
             "artist": album.artist.name if album.artist else None,
+            "artist_id": str(album.artist.id) if album.artist else None,
             "year": getattr(album, "year", None),
             "cover_url": cover_url,
             "num_tracks": getattr(album, "num_tracks", None),

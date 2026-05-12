@@ -84,29 +84,37 @@ export function AlbumDetail({ albumId, onClose }: Props) {
                 )}
               </div>
               <div className="min-w-0 space-y-1">
-                <h2 className="text-lg font-bold leading-tight">{album.title}</h2>
-                <p className="text-muted text-sm">{album.artist}</p>
+                <a
+                  href={`tidal://album/${album.id}`}
+                  className="block text-lg font-bold leading-tight hover:text-accent transition-colors"
+                  title="Open in Tidal app"
+                >
+                  {album.title}
+                </a>
+                {album.artist_id ? (
+                  <a
+                    href={`tidal://artist/${album.artist_id}`}
+                    className="block text-muted text-sm hover:text-accent transition-colors"
+                    title="Open artiest in Tidal app"
+                  >
+                    {album.artist}
+                  </a>
+                ) : (
+                  <p className="text-muted text-sm">{album.artist}</p>
+                )}
                 {album.year && <p className="text-muted text-sm">{album.year}</p>}
                 {album.num_tracks && (
                   <p className="text-xs text-border">{album.num_tracks} tracks</p>
                 )}
                 {album.tidal_url && (
-                  <div className="flex flex-col gap-1">
-                    <a
-                      href={`tidal://album/${album.id}`}
-                      className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
-                    >
-                      Open in Tidal app <ExternalLink className="w-3 h-3" />
-                    </a>
-                    <a
-                      href={album.tidal_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-muted hover:underline"
-                    >
-                      Open in browser <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
+                  <a
+                    href={album.tidal_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-muted hover:underline"
+                  >
+                    Open in browser <ExternalLink className="w-3 h-3" />
+                  </a>
                 )}
               </div>
             </div>

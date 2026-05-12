@@ -8,6 +8,7 @@ export interface Album {
   id: string;
   title: string;
   artist: string | null;
+  artist_id: string | null;
   year: number | null;
   cover_url: string | null;
   num_tracks: number | null;

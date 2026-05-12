@@ -14,6 +14,7 @@ export function Library() {
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [searchTitle, setSearchTitle] = useState("");
   const [searchArtist, setSearchArtist] = useState("");
+  const [searchYear, setSearchYear] = useState("");
   const [filterTagId, setFilterTagId] = useState<number | null>(null);
   const [yearFrom, setYearFrom] = useState("");
   const [yearTo, setYearTo] = useState("");
@@ -26,15 +27,18 @@ export function Library() {
   const [enrichCancelling, setEnrichCancelling] = useState(false);
   const [enrichProgress, setEnrichProgress] = useState<{ done: number; total: number } | null>(null);
 
+  const effectiveYearFrom = searchYear ? parseInt(searchYear) : yearFrom ? parseInt(yearFrom) : undefined;
+  const effectiveYearTo   = searchYear ? parseInt(searchYear) : yearTo   ? parseInt(yearTo)   : undefined;
+
   const { data: albums = [], isLoading } = useQuery({
-    queryKey: ["albums", searchTitle, searchArtist, filterTagId, yearFrom, yearTo, [...filterGenres].sort().join(","), filterDolbyAtmos],
+    queryKey: ["albums", searchTitle, searchArtist, searchYear, filterTagId, yearFrom, yearTo, [...filterGenres].sort().join(","), filterDolbyAtmos],
     queryFn: () =>
       getAlbums({
         title: searchTitle || undefined,
         artist: searchArtist || undefined,
         tag: filterTagId ? [filterTagId] : undefined,
-        year_from: yearFrom ? parseInt(yearFrom) : undefined,
-        year_to: yearTo ? parseInt(yearTo) : undefined,
+        year_from: effectiveYearFrom,
+        year_to: effectiveYearTo,
         genre: filterGenres.size > 0 ? [...filterGenres] : undefined,
         dolby_atmos: filterDolbyAtmos || undefined,
       }),
@@ -72,11 +76,12 @@ export function Library() {
       setSelectedIds(new Set(albums.map((a) => a.id)));
     }
   };
-  const hasFilters = !!searchTitle || !!searchArtist || filterTagId !== null || !!yearFrom || !!yearTo || filterGenres.size > 0 || filterDolbyAtmos;
+  const hasFilters = !!searchTitle || !!searchArtist || !!searchYear || filterTagId !== null || !!yearFrom || !!yearTo || filterGenres.size > 0 || filterDolbyAtmos;
 
   const resetFilters = () => {
     setSearchTitle("");
     setSearchArtist("");
+    setSearchYear("");
     setFilterTagId(null);
     setYearFrom("");
     setYearTo("");
@@ -155,6 +160,15 @@ export function Library() {
               onChange={(e) => setSearchArtist(e.target.value)}
             />
           </div>
+
+          {/* Jaar zoeken */}
+          <input
+            className="input w-24 text-center"
+            placeholder="Jaar..."
+            value={searchYear}
+            maxLength={4}
+            onChange={(e) => setSearchYear(e.target.value.replace(/\D/g, ""))}
+          />
 
           <button
             onClick={() => setShowFilters((v) => !v)}

@@ -86,6 +86,7 @@ def sync_albums(db: Session = Depends(get_db)):
             existing.cover_url = data["cover_url"]
             existing.num_tracks = data["num_tracks"]
             existing.audio_modes = data.get("audio_modes")
+            existing.artist_id = data.get("artist_id")
             existing.synced_at = now
             updated += 1
         else:
@@ -93,6 +94,7 @@ def sync_albums(db: Session = Depends(get_db)):
                 id=data["id"],
                 title=data["title"],
                 artist=data["artist"],
+                artist_id=data.get("artist_id"),
                 year=data["year"],
                 cover_url=data["cover_url"],
                 num_tracks=data["num_tracks"],
@@ -116,11 +118,13 @@ def _upsert_albums(db, albums_data: List[dict], now) -> tuple[int, int]:
             existing.cover_url = data["cover_url"]
             existing.num_tracks = data["num_tracks"]
             existing.audio_modes = data.get("audio_modes")
+            existing.artist_id = data.get("artist_id")
             existing.synced_at = now
             updated += 1
         else:
             db.add(Album(
                 id=data["id"], title=data["title"], artist=data["artist"],
+                artist_id=data.get("artist_id"),
                 year=data["year"], cover_url=data["cover_url"],
                 num_tracks=data["num_tracks"], duration=data["duration"],
                 tidal_url=data["tidal_url"], audio_modes=data.get("audio_modes"),

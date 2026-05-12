@@ -23,6 +23,7 @@ class AlbumBase(BaseModel):
     id: str
     title: str
     artist: Optional[str] = None
+    artist_id: Optional[str] = None
     year: Optional[int] = None
     cover_url: Optional[str] = None
     num_tracks: Optional[int] = None
