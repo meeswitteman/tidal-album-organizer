@@ -1,8 +1,9 @@
 import tidalapi
 from pathlib import Path
 from typing import Optional, List
+from ..data_dir import get_data_dir
 
-SESSION_FILE = Path("tidal_session.json")
+SESSION_FILE = get_data_dir() / "tidal_session.json"
 
 _login_future = None
 
@@ -38,8 +39,10 @@ class TidalService:
         global _login_future
         login, future = self.session.login_oauth()
         _login_future = future
+        uri = login.verification_uri_complete
+        verification_url = uri if uri.startswith("http") else f"https://{uri}"
         return {
-            "verification_url": login.verification_uri_complete,
+            "verification_url": verification_url,
             "user_code": login.user_code,
         }
 

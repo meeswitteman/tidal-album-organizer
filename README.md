@@ -52,6 +52,7 @@ Een lokale desktop-webapplicatie voor Windows om je Tidal-albumbibliotheek te be
 ### Audioplayer
 - Ingebouwde HTML5-audioplayer, speelt direct af via de Tidal-streaming-API (geen externe app nodig)
 - **Mini-player balk** onderaan het scherm: play/pause, tracknaam, artiest, tijdweergave en voortgangsbalk
+- **Klik op de tracktitel** in de mini-player om direct naar het bijbehorende album te springen — opent het albumdetailpaneel en navigeert zo nodig terug naar de bibliotheek
 - Klik op de voortgangsbalk om naar een willekeurig punt te seekken
 - **Persistent**: spelen gaat door bij wisselen van album, lijst of pagina
 - **Auto-advance**: na elk nummer start het volgende automatisch
@@ -117,15 +118,19 @@ De applicatie draait volledig lokaal: één Python-proces serveert zowel de API 
 | HTTP-client (verrijking) | httpx (async) |
 | Server | Uvicorn |
 
-**Database** (`tidal_org.db`):
+**Gebruikersdata** — opgeslagen in `%APPDATA%\TidalOrganizer\`:
+- `tidal_org.db` — SQLite-database met albummetadata, tags, lijsten en playlists
+- `tidal_session.json` — Tidal-sessietoken (aangemaakt na eerste login)
+
+Deze locatie blijft bij updates behouden en is onafhankelijk van de installatielocatie van de app.
+
+**Database-tabellen:**
 - `albums` — albummetadata, genres, audio_modes, notities
 - `tags` — gebruikersdefinieerde labels met kleur
 - `album_tags` — koppeltabel albums ↔ tags
 - `album_lists` — lokale albumlijsten
 - `album_list_items` — items in lijsten (met positie voor volgorde)
 - `playlists` — geëxporteerde Tidal-playlists
-
-**Tidal-sessie** wordt opgeslagen in `tidal_session.json` zodat je niet opnieuw hoeft in te loggen na herstart.
 
 **DB-migraties** worden automatisch uitgevoerd bij opstarten (via `ALTER TABLE` checks in `main.py`).
 
@@ -180,36 +185,44 @@ npm run build
 cd ..
 ```
 
-**4. Applicatie starten**
-
-```powershell
-python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
-```
-
-Open vervolgens `http://localhost:8000` in je browser.
-
 ---
 
 ## Opstarten
 
-### Productie (aanbevolen)
+### Als uitvoerbare exe (aanbevolen)
+
+Bouw een enkelvoudige `.exe` met één commando:
 
 ```powershell
-python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
+.\build.bat
 ```
 
-De gebouwde React-app wordt automatisch geserveerd op `http://localhost:8000`.
+Dit voert automatisch de frontend-build en PyInstaller-bundeling uit. Het resultaat staat in:
 
-### Ontwikkelmodus
+```
+dist\TidalOrganizer.exe
+```
 
-Start backend en frontend apart (hot-reload):
+Dubbel-klik de exe om de app te starten:
+- De browser opent automatisch op `http://localhost:8000`
+- Een **system tray-icoon** verschijnt in de taakbalk (rechtsboven bij de klok)
+  - Dubbelklik of klik **Open Tidal Organizer** om de browser opnieuw te openen
+  - Klik **Afsluiten** om de app te stoppen
+- Eerste keer: doorloop de Tidal-login in de browser
+
+> De exe vereist geen installatie en werkt op Windows 10/11. Data wordt opgeslagen in `%APPDATA%\TidalOrganizer\` en blijft bewaard bij updates.
+
+### Als server (development / geavanceerd)
 
 ```powershell
-# In tidal-org/
-.\start-dev.ps1
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-Of handmatig:
+Open vervolgens `http://localhost:8000` in je browser.
+
+### Ontwikkelmodus (hot-reload)
+
+Start backend en frontend apart zodat wijzigingen direct zichtbaar zijn zonder opnieuw te bouwen:
 
 ```powershell
 # Terminal 1 — backend
@@ -222,11 +235,7 @@ npm run dev
 
 Frontend is dan beschikbaar op `http://localhost:5173`, API op `http://localhost:8000`.
 
-Na wijzigingen aan de frontend altijd opnieuw bouwen voor productie:
-
-```powershell
-cd frontend && npm run build
-```
+> Na wijzigingen aan de frontend opnieuw bouwen voor de exe: `.\build.bat`
 
 ---
 
@@ -234,11 +243,11 @@ cd frontend && npm run build
 
 ### Eerste keer inloggen
 
-1. Open `http://localhost:8000`
+1. Start de app (exe of server) — de browser opent automatisch
 2. Klik **Inloggen met Tidal**
 3. Er verschijnt een code en een link → open de link, voer de code in op de Tidal-website
 4. Na bevestiging laadt de app automatisch opnieuw
-5. De sessie wordt opgeslagen; je hoeft niet opnieuw in te loggen na herstart
+5. De sessie wordt opgeslagen in `%APPDATA%\TidalOrganizer\tidal_session.json`; je hoeft niet opnieuw in te loggen na herstart
 
 ### Albums importeren
 
@@ -263,6 +272,13 @@ Na afloop zijn genres beschikbaar als filter, en verschijnen review-links in het
   - **Genre** — multi-select dropdown (meerdere genres tegelijk, OR-logica)
   - **Dolby Atmos** — schakelaar voor alleen Atmos-albums
 - Klik **Reset** om alle filters te wissen
+
+### Audioplayer gebruiken
+
+- Klik op een tracknummer in het albumdetailpaneel om het af te spelen
+- De mini-player verschijnt onderaan het scherm
+- Klik op de **tracktitel** in de mini-player om terug te springen naar het album (ook vanuit een andere pagina)
+- Klik op de voortgangsbalk om naar een willekeurig punt te springen
 
 ### Tags beheren
 
@@ -305,6 +321,7 @@ tidal-org/
 ├── backend/
 │   ├── main.py                  # FastAPI app, routes registreren, DB migratie
 │   ├── database.py              # SQLAlchemy engine & sessie
+│   ├── data_dir.py              # Gedeeld pad naar %APPDATA%\TidalOrganizer\
 │   ├── models.py                # ORM-modellen (Album, Tag, AlbumList, ...)
 │   ├── schemas.py               # Pydantic request/response schemas
 │   ├── routers/
@@ -339,13 +356,13 @@ tidal-org/
 │   │   │   ├── Playlists.tsx    # Geëxporteerde playlists
 │   │   │   └── Tags.tsx         # Tag beheer
 │   │   ├── types/index.ts       # TypeScript interfaces
-│   │   ├── App.tsx              # Root component, routing
+│   │   ├── App.tsx              # Root component, routing, activeAlbumId state
 │   │   └── main.tsx             # React entry point
 │   ├── package.json
 │   └── vite.config.ts
-├── tidal_org.db                 # SQLite-database (aangemaakt bij eerste start)
-├── tidal_session.json           # Tidal-sessie (aangemaakt na eerste login)
-├── start-dev.ps1                # Development startscript (Windows)
+├── app.py                       # Desktop launcher (server + browser + tray-icoon)
+├── tidal_organizer.spec         # PyInstaller bundel-configuratie
+├── build.bat                    # Bouwscript: frontend + exe in één stap
 └── README.md
 ```
 
@@ -357,7 +374,7 @@ De applicatie communiceert met drie externe diensten. Alle verzoeken worden vanu
 
 | Dienst | Endpoint | Privacy |
 |---|---|---|
-| Tidal API | `api.tidal.com` | Sessietoken opgeslagen lokaal in `tidal_session.json` |
+| Tidal API | `api.tidal.com` | Sessietoken opgeslagen lokaal in `%APPDATA%\TidalOrganizer\tidal_session.json` |
 | Wikipedia | `en.wikipedia.org/api/rest_v1` en `/w/api.php` | Alleen lezen, geen account vereist |
 | MusicBrainz | `musicbrainz.org/ws/2` | Alleen lezen, geen account vereist |
 

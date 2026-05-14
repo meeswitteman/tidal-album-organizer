@@ -5,3 +5,6 @@ sqlalchemy
 httpx
 python-dotenv
 pydantic
+pystray
+pillow
+pyinstaller

@@ -1,4 +1,4 @@
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, ListMusic } from "lucide-react";
 import { usePlayer } from "../context/PlayerContext";
 
 function formatDuration(seconds: number) {
@@ -7,8 +7,12 @@ function formatDuration(seconds: number) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export function MiniPlayer() {
-  const { trackId, trackTitle, artist, isPlaying, currentTime, duration, togglePlay, seek } = usePlayer();
+interface MiniPlayerProps {
+  onShowAlbum?: (albumId: string) => void;
+}
+
+export function MiniPlayer({ onShowAlbum }: MiniPlayerProps) {
+  const { trackId, albumId, trackTitle, artist, isPlaying, currentTime, duration, togglePlay, seek } = usePlayer();
 
   if (!trackId) return null;
 
@@ -25,7 +29,18 @@ export function MiniPlayer() {
           }
         </button>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium truncate">{trackTitle}</p>
+          {albumId && onShowAlbum ? (
+            <button
+              onClick={() => onShowAlbum(albumId)}
+              className="group/title flex items-center gap-1 min-w-0 text-left hover:text-accent transition-colors"
+              title="Toon album"
+            >
+              <span className="text-xs font-medium truncate">{trackTitle}</span>
+              <ListMusic className="w-3 h-3 shrink-0 text-muted group-hover/title:text-accent transition-colors" />
+            </button>
+          ) : (
+            <p className="text-xs font-medium truncate">{trackTitle}</p>
+          )}
           <p className="text-xs text-muted truncate">{artist}</p>
         </div>
         <div className="text-xs text-muted shrink-0 tabular-nums">

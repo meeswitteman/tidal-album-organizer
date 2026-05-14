@@ -1,3 +1,4 @@
+import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -44,7 +45,11 @@ app.include_router(playlists.router, prefix="/api")
 app.include_router(albumlists.router, prefix="/api")
 app.include_router(tidal.router, prefix="/api")
 
-# Serve built React app in production
-frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+# Serve built React app — works both in dev and as frozen exe
+if getattr(sys, "frozen", False):
+    frontend_dist = Path(sys._MEIPASS) / "frontend_dist"  # type: ignore[attr-defined]
+else:
+    frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+
 if frontend_dist.exists():
     app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="static")

@@ -34,7 +34,7 @@ export function AlbumDetail({ albumId, onClose }: Props) {
   const handlePlayTrack = (trackId: string) => {
     const queue = buildQueue();
     const track = album?.tracks?.find((t) => t.id === trackId);
-    ctxPlayTrack(trackId, track?.title ?? "", track?.artist ?? album?.artist ?? "", queue);
+    ctxPlayTrack(trackId, track?.title ?? "", track?.artist ?? album?.artist ?? "", queue, albumId);
   };
   const { data: allTags = [] } = useQuery({ queryKey: ["tags"], queryFn: getTags });
 
