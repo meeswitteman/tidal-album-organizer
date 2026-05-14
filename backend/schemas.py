@@ -196,6 +196,7 @@ class SyncResult(BaseModel):
     added: int
     updated: int
     total: int
+    new_album_ids: List[str] = []
 
 
 class ReimportResult(BaseModel):

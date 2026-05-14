@@ -80,6 +80,7 @@ def sync_albums(db: Session = Depends(get_db)):
     updated = 0
     now = datetime.utcnow()
 
+    new_ids = []
     for data in tidal_albums:
         existing = db.query(Album).filter(Album.id == data["id"]).first()
         if existing:
@@ -104,10 +105,11 @@ def sync_albums(db: Session = Depends(get_db)):
                 synced_at=now,
             )
             db.add(album)
+            new_ids.append(data["id"])
             added += 1
 
     db.commit()
-    return SyncResult(added=added, updated=updated, total=len(tidal_albums))
+    return SyncResult(added=added, updated=updated, total=len(tidal_albums), new_album_ids=new_ids)
 
 
 def _upsert_albums(db, albums_data: List[dict], now) -> tuple[int, int]:
@@ -207,6 +209,8 @@ def list_albums(
     title: Optional[str] = None,
     genre: Optional[List[str]] = Query(default=None),
     dolby_atmos: bool = False,
+    sort_by: Optional[str] = "artist",
+    sort_dir: Optional[str] = "asc",
     db: Session = Depends(get_db),
 ):
     from sqlalchemy import or_
@@ -233,7 +237,14 @@ def list_albums(
     if dolby_atmos:
         q = q.filter(text("EXISTS (SELECT 1 FROM json_each(albums.audio_modes) WHERE value = 'DOLBY_ATMOS')"))
 
-    return q.order_by(Album.artist, Album.year).all()
+    sort_col = {
+        "title": Album.title,
+        "year": Album.year,
+        "synced_at": Album.synced_at,
+    }.get(sort_by, Album.artist)
+
+    q = q.order_by(sort_col.desc() if sort_dir == "desc" else sort_col.asc())
+    return q.all()
 
 
 @router.get("/tracks/{track_id}/url")

@@ -7,12 +7,13 @@ import { TruncatedTitle } from "./TruncatedTitle";
 interface Props {
   album: Album;
   selected: boolean;
+  isNew?: boolean;
   onClick: () => void;
   onToggleSelect: (e: React.MouseEvent) => void;
   onShowCover: (e: React.MouseEvent) => void;
 }
 
-export function AlbumCard({ album, selected, onClick, onToggleSelect, onShowCover }: Props) {
+export function AlbumCard({ album, selected, isNew, onClick, onToggleSelect, onShowCover }: Props) {
   return (
     <div
       onClick={onClick}
@@ -53,6 +54,13 @@ export function AlbumCard({ album, selected, onClick, onToggleSelect, onShowCove
             </svg>
           )}
         </button>
+
+        {/* NIEUW badge */}
+        {isNew && (
+          <div className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-tight bg-emerald-500/90 text-white">
+            NIEUW
+          </div>
+        )}
 
         {/* Cover vergroten — rechts */}
         {album.cover_url && (

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, ListMusic, Search, SlidersHorizontal, X, Download, Sparkles, CheckSquare } from "lucide-react";
+import { RefreshCw, ListMusic, Search, SlidersHorizontal, X, Download, Sparkles, CheckSquare, ChevronUp, ChevronDown } from "lucide-react";
 import { getAlbums, syncAlbums, reimportAlbums, getTags, getGenres, startEnrichGenres, cancelEnrichGenres, getEnrichStatus } from "../api/client";
 import { AlbumCard } from "../components/AlbumCard";
 import { AlbumDetail } from "../components/AlbumDetail";
@@ -13,8 +13,18 @@ interface LibraryProps {
   onSetActiveAlbum: (id: string | null) => void;
 }
 
+type SortField = "artist" | "title" | "year" | "synced_at";
+
+const SORT_LABELS: Record<SortField, string> = {
+  artist: "Artiest",
+  title: "Album",
+  year: "Jaar",
+  synced_at: "Importdatum",
+};
+
 export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: LibraryProps) {
   const qc = useQueryClient();
+
   const [detailWidth, setDetailWidth] = useState(() => {
     const saved = localStorage.getItem("tao_detail_width");
     return saved ? parseInt(saved) : 320;
@@ -27,6 +37,11 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
       return next;
     });
   }, []);
+
+  const [sortBy, setSortBy] = useState<SortField>(() => (localStorage.getItem("tao_sort_by") as SortField) ?? "artist");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => (localStorage.getItem("tao_sort_dir") as "asc" | "desc") ?? "asc");
+  const [newAlbumIds, setNewAlbumIds] = useState<Set<string>>(new Set());
+  const [showOnlyNew, setShowOnlyNew] = useState(false);
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
@@ -49,7 +64,7 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
   const effectiveYearTo   = searchYear ? parseInt(searchYear) : yearTo   ? parseInt(yearTo)   : undefined;
 
   const { data: albums = [], isLoading } = useQuery({
-    queryKey: ["albums", searchTitle, searchArtist, searchYear, filterTagId, yearFrom, yearTo, [...filterGenres].sort().join(","), filterDolbyAtmos],
+    queryKey: ["albums", searchTitle, searchArtist, searchYear, filterTagId, yearFrom, yearTo, [...filterGenres].sort().join(","), filterDolbyAtmos, sortBy, sortDir],
     queryFn: () =>
       getAlbums({
         title: searchTitle || undefined,
@@ -59,21 +74,46 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
         year_to: effectiveYearTo,
         genre: filterGenres.size > 0 ? [...filterGenres] : undefined,
         dolby_atmos: filterDolbyAtmos || undefined,
+        sort_by: sortBy,
+        sort_dir: sortDir,
       }),
   });
+
+  const displayAlbums = showOnlyNew ? albums.filter((a) => newAlbumIds.has(a.id)) : albums;
 
   const { data: tags = [] } = useQuery({ queryKey: ["tags"], queryFn: getTags });
   const { data: genres = [] } = useQuery({ queryKey: ["genres"], queryFn: getGenres });
 
   const sync = useMutation({
     mutationFn: syncAlbums,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["albums"] }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["albums"] });
+      if (data.new_album_ids?.length) {
+        setNewAlbumIds(new Set(data.new_album_ids));
+        setShowOnlyNew(false);
+      } else {
+        setNewAlbumIds(new Set());
+      }
+    },
   });
 
   const reimport = useMutation({
     mutationFn: reimportAlbums,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["albums"] }),
   });
+
+  const toggleSort = (field: SortField) => {
+    if (sortBy === field) {
+      const next = sortDir === "asc" ? "desc" : "asc";
+      setSortDir(next);
+      localStorage.setItem("tao_sort_dir", next);
+    } else {
+      setSortBy(field);
+      setSortDir("asc");
+      localStorage.setItem("tao_sort_by", field);
+      localStorage.setItem("tao_sort_dir", "asc");
+    }
+  };
 
   const toggleSelect = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -85,15 +125,16 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
   };
 
   const selectedAlbums = albums.filter((a) => selectedIds.has(a.id));
-  const allVisibleSelected = albums.length > 0 && albums.every((a) => selectedIds.has(a.id));
+  const allVisibleSelected = displayAlbums.length > 0 && displayAlbums.every((a) => selectedIds.has(a.id));
 
   const toggleSelectAll = () => {
     if (allVisibleSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(albums.map((a) => a.id)));
+      setSelectedIds(new Set(displayAlbums.map((a) => a.id)));
     }
   };
+
   const hasFilters = !!searchTitle || !!searchArtist || !!searchYear || filterTagId !== null || !!yearFrom || !!yearTo || filterGenres.size > 0 || filterDolbyAtmos;
 
   const resetFilters = () => {
@@ -125,7 +166,6 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
     }
   };
 
-  // Check bij laden of enrichment al loopt (bijv. gestart via API)
   useEffect(() => {
     getEnrichStatus().then((status) => {
       if (status.running) {
@@ -209,7 +249,7 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
             <button onClick={toggleSelectAll} className="btn-ghost text-sm">
               {allVisibleSelected
                 ? <><X className="w-4 h-4" /> Deselecteer alles</>
-                : <><CheckSquare className="w-4 h-4" /> Selecteer alles {hasFilters && `(${albums.length})`}</>
+                : <><CheckSquare className="w-4 h-4" /> Selecteer alles {hasFilters && `(${displayAlbums.length})`}</>
               }
             </button>
           )}
@@ -349,43 +389,87 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
 
         {/* Grid */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Resultaat teller */}
-          <div className="mb-4 flex items-center gap-2">
+          {/* Status balk: teller + sync resultaat + sortering */}
+          <div className="mb-4 flex items-center gap-3 flex-wrap">
             <span className="text-xs text-muted">
-              {isLoading ? "Laden..." : `${albums.length} albums`}
+              {isLoading ? "Laden..." : `${displayAlbums.length}${showOnlyNew ? "" : albums.length !== displayAlbums.length ? `/${albums.length}` : ""} albums`}
               {hasFilters && " (gefilterd)"}
             </span>
-            {sync.data && (
-              <span className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-xs text-accent">
-                Sync: {sync.data.added} nieuw, {sync.data.updated} bijgewerkt
+
+            {/* Sync resultaat banner */}
+            {sync.isSuccess && newAlbumIds.size > 0 && (
+              <span className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-xs text-emerald-400">
+                ✓ {newAlbumIds.size} nieuwe album{newAlbumIds.size !== 1 ? "s" : ""} toegevoegd
+                <button
+                  onClick={() => setShowOnlyNew((v) => !v)}
+                  className={`underline hover:no-underline ${showOnlyNew ? "text-white" : ""}`}
+                >
+                  {showOnlyNew ? "Toon alles" : "Toon alleen nieuwe"}
+                </button>
+                <button onClick={() => { setNewAlbumIds(new Set()); setShowOnlyNew(false); }} className="hover:text-white">
+                  <X className="w-3 h-3" />
+                </button>
               </span>
             )}
+
+            {sync.isSuccess && newAlbumIds.size === 0 && sync.data && sync.data.added === 0 && (
+              <span className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-xs text-accent">
+                Sync: {sync.data.updated} bijgewerkt, geen nieuwe albums
+              </span>
+            )}
+
             {reimport.data && (
               <span className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-xs text-accent">
                 Her-import: {reimport.data.added} nieuw · favorieten {reimport.data.sources.favorieten?.total ?? 0} · playlists {reimport.data.sources.playlists?.total ?? 0}
               </span>
             )}
+
+            <div className="flex-1" />
+
+            {/* Sortering */}
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted mr-1">Sorteren:</span>
+              {(Object.keys(SORT_LABELS) as SortField[]).map((field) => (
+                <button
+                  key={field}
+                  onClick={() => toggleSort(field)}
+                  className={`flex items-center gap-0.5 px-2 py-1 rounded text-xs transition-colors ${
+                    sortBy === field
+                      ? "bg-accent/15 text-accent font-medium"
+                      : "text-muted hover:text-white"
+                  }`}
+                >
+                  {SORT_LABELS[field]}
+                  {sortBy === field && (
+                    sortDir === "asc"
+                      ? <ChevronUp className="w-3 h-3" />
+                      : <ChevronDown className="w-3 h-3" />
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
 
           {isLoading ? (
             <div className="flex items-center justify-center h-64">
               <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : albums.length === 0 ? (
+          ) : displayAlbums.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-muted gap-3">
               <p className="text-lg">Geen albums gevonden</p>
-              {hasFilters
+              {hasFilters || showOnlyNew
                 ? <p className="text-sm">Pas de filters aan of klik Reset.</p>
                 : <p className="text-sm">Druk op "Sync Tidal" om je favorieten te importeren.</p>
               }
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-5">
-              {albums.map((album) => (
+              {displayAlbums.map((album) => (
                 <AlbumCard
                   key={album.id}
                   album={album}
                   selected={selectedIds.has(album.id)}
+                  isNew={newAlbumIds.has(album.id)}
                   onClick={() => setActiveAlbumId(album.id === activeAlbumId ? null : album.id)}
                   onToggleSelect={(e) => toggleSelect(album.id, e)}
                   onShowCover={(e) => { e.stopPropagation(); setZoomedCover(album.cover_url); }}

@@ -14,6 +14,7 @@ export interface Album {
   num_tracks: number | null;
   notes: string;
   added_at: string | null;
+  synced_at: string | null;
   tidal_url: string | null;
   genres: string[] | null;
   audio_modes: string[] | null;
@@ -62,6 +63,7 @@ export interface SyncResult {
   added: number;
   updated: number;
   total: number;
+  new_album_ids: string[];
 }
 
 export interface AlbumListItem {

@@ -35,6 +35,8 @@ export const getAlbums = (params?: {
   title?: string;
   genre?: string[];
   dolby_atmos?: boolean;
+  sort_by?: string;
+  sort_dir?: string;
 }) => api.get<Album[]>("/albums", { params }).then((r) => r.data);
 export const getGenres = () => api.get<string[]>("/albums/genres").then((r) => r.data);
 export const startEnrichGenres = () =>
