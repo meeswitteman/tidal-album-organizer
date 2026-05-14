@@ -97,5 +97,5 @@ exe = EXE(
     upx=False,
     console=False,      # Geen terminal venster
     windowed=True,
-    icon=None,          # Voeg hier een .ico pad toe voor een eigen icoon
+    icon="tidal_organizer.ico",
 )
