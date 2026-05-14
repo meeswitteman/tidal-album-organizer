@@ -19,7 +19,7 @@ const nav: { id: Page; label: string; icon: React.ReactNode }[] = [
 
 export function Sidebar({ current, onNavigate, username }: Props) {
   return (
-    <aside className="w-56 shrink-0 bg-surface border-r border-border flex flex-col">
+    <aside className="w-full bg-surface border-r border-border flex flex-col">
       {/* Logo */}
       <div className="px-4 py-5 border-b border-border">
         <h1 className="text-base font-bold tracking-tight text-white leading-tight">

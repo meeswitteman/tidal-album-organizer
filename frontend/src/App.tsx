@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink } from "lucide-react";
 import { Sidebar, type Page } from "./components/Sidebar";
@@ -10,6 +10,7 @@ import { TidalPlaylists } from "./pages/TidalPlaylists";
 import { getAuthStatus, startLogin, pollLogin } from "./api/client";
 import { PlayerProvider } from "./context/PlayerContext";
 import { MiniPlayer } from "./components/MiniPlayer";
+import { ResizableDivider } from "./components/ResizableDivider";
 
 function LoginScreen() {
   const [loginData, setLoginData] = useState<{ verification_url: string; user_code: string } | null>(null);
@@ -78,6 +79,20 @@ const PAGE_TITLES: Record<Page, string> = {
 
 export default function App() {
   const [page, setPage] = useState<Page>("library");
+  const [activeAlbumId, setActiveAlbumId] = useState<string | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem("tao_sidebar_width");
+    return saved ? parseInt(saved) : 224;
+  });
+
+  const resizeSidebar = useCallback((delta: number) => {
+    setSidebarWidth((w) => {
+      const next = Math.max(160, Math.min(380, w + delta));
+      localStorage.setItem("tao_sidebar_width", String(next));
+      return next;
+    });
+  }, []);
+
   const { data: auth, isLoading } = useQuery({
     queryKey: ["auth"],
     queryFn: getAuthStatus,
@@ -99,13 +114,16 @@ export default function App() {
   return (
     <PlayerProvider>
       <div className="flex h-screen overflow-hidden bg-black text-white">
-        <Sidebar current={page} onNavigate={setPage} username={auth?.username} />
+        <div style={{ width: sidebarWidth }} className="shrink-0">
+          <Sidebar current={page} onNavigate={(p) => { setPage(p); if (p !== "library") setActiveAlbumId(null); }} username={auth?.username} />
+        </div>
+        <ResizableDivider onDelta={resizeSidebar} />
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             {!auth?.logged_in ? (
               <LoginScreen />
             ) : page === "library" ? (
-              <Library />
+              <Library activeAlbumId={activeAlbumId} onSetActiveAlbum={setActiveAlbumId} />
             ) : page === "albumlists" ? (
               <AlbumLists />
             ) : page === "tidalplaylists" ? (
@@ -116,7 +134,7 @@ export default function App() {
               <Tags />
             )}
           </div>
-          <MiniPlayer />
+          <MiniPlayer onShowAlbum={(albumId) => { setPage("library"); setActiveAlbumId(albumId); }} />
         </main>
       </div>
     </PlayerProvider>

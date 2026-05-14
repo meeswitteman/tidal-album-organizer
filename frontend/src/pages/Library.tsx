@@ -1,16 +1,34 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, ListMusic, Search, SlidersHorizontal, X, Download, Sparkles, CheckSquare } from "lucide-react";
 import { getAlbums, syncAlbums, reimportAlbums, getTags, getGenres, startEnrichGenres, cancelEnrichGenres, getEnrichStatus } from "../api/client";
 import { AlbumCard } from "../components/AlbumCard";
 import { AlbumDetail } from "../components/AlbumDetail";
 import { PlaylistModal } from "../components/PlaylistModal";
+import { ResizableDivider } from "../components/ResizableDivider";
 import type { Album } from "../types";
 
-export function Library() {
+interface LibraryProps {
+  activeAlbumId: string | null;
+  onSetActiveAlbum: (id: string | null) => void;
+}
+
+export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: LibraryProps) {
   const qc = useQueryClient();
+  const [detailWidth, setDetailWidth] = useState(() => {
+    const saved = localStorage.getItem("tao_detail_width");
+    return saved ? parseInt(saved) : 320;
+  });
+
+  const resizeDetail = useCallback((delta: number) => {
+    setDetailWidth((w) => {
+      const next = Math.max(250, Math.min(600, w - delta));
+      localStorage.setItem("tao_detail_width", String(next));
+      return next;
+    });
+  }, []);
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [activeAlbumId, setActiveAlbumId] = useState<string | null>(null);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [searchTitle, setSearchTitle] = useState("");
   const [searchArtist, setSearchArtist] = useState("");
@@ -380,9 +398,12 @@ export function Library() {
 
       {/* Detail panel */}
       {activeAlbumId && (
-        <div className="w-80 shrink-0">
-          <AlbumDetail albumId={activeAlbumId} onClose={() => setActiveAlbumId(null)} />
-        </div>
+        <>
+          <ResizableDivider onDelta={resizeDetail} />
+          <div style={{ width: detailWidth }} className="shrink-0">
+            <AlbumDetail albumId={activeAlbumId} onClose={() => setActiveAlbumId(null)} />
+          </div>
+        </>
       )}
 
       {/* Playlist modal */}
