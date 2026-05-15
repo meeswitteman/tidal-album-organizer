@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, ListMusic, Search, SlidersHorizontal, X, Download, Sparkles, CheckSquare, ChevronUp, ChevronDown } from "lucide-react";
+import { RefreshCw, ListMusic, Search, SlidersHorizontal, X, Download, Sparkles, CheckSquare, ChevronUp, ChevronDown, Settings2 } from "lucide-react";
 import { getAlbums, syncAlbums, reimportAlbums, getTags, getGenres, startEnrichGenres, cancelEnrichGenres, getEnrichStatus } from "../api/client";
 import { AlbumCard } from "../components/AlbumCard";
 import { AlbumDetail } from "../components/AlbumDetail";
@@ -54,6 +54,15 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
   const [showFilters, setShowFilters] = useState(false);
   const [filterGenres, setFilterGenres] = useState<Set<string>>(new Set());
   const [showGenreDropdown, setShowGenreDropdown] = useState(false);
+  const [showGenreManager, setShowGenreManager] = useState(false);
+  const [genreSearch, setGenreSearch] = useState("");
+  const genreDropdownRef = useRef<HTMLDivElement>(null);
+  const [visibleGenres, setVisibleGenres] = useState<Set<string> | null>(() => {
+    const saved = localStorage.getItem("tao_visible_genres");
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    return parsed === null ? null : new Set<string>(parsed);
+  });
   const [filterDolbyAtmos, setFilterDolbyAtmos] = useState(false);
   const [zoomedCover, setZoomedCover] = useState<string | null>(null);
   const [enrichRunning, setEnrichRunning] = useState(false);
@@ -154,6 +163,24 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
     return next;
   });
 
+  const activeGenres = visibleGenres === null ? genres : genres.filter((g) => visibleGenres.has(g));
+
+  const toggleVisibleGenre = (g: string) => {
+    setVisibleGenres((prev) => {
+      const base = prev === null ? new Set(genres) : new Set(prev);
+      base.has(g) ? base.delete(g) : base.add(g);
+      const next = base.size === genres.length ? null : base;
+      localStorage.setItem("tao_visible_genres", JSON.stringify(next === null ? null : [...next]));
+      return next;
+    });
+  };
+
+  const setAllVisible = (all: boolean) => {
+    const next = all ? null : new Set<string>();
+    setVisibleGenres(next);
+    localStorage.setItem("tao_visible_genres", JSON.stringify(next === null ? null : [...next]));
+  };
+
   const handleEnrichToggle = async () => {
     if (enrichRunning) {
       setEnrichCancelling(true);
@@ -165,6 +192,18 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
       setEnrichProgress({ done: result.done ?? 0, total: result.total });
     }
   };
+
+  useEffect(() => {
+    if (!showGenreDropdown) return;
+    const handler = (e: MouseEvent) => {
+      if (genreDropdownRef.current && !genreDropdownRef.current.contains(e.target as Node)) {
+        setShowGenreDropdown(false);
+        setGenreSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showGenreDropdown]);
 
   useEffect(() => {
     getEnrichStatus().then((status) => {
@@ -327,45 +366,68 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
               <input className="input py-1 text-xs w-20" placeholder="2024" value={yearTo} onChange={(e) => setYearTo(e.target.value)} />
             </div>
             {genres.length > 0 && (
-              <div className="relative">
-                <label className="text-xs text-muted block mb-1">Genre</label>
-                <button
-                  onClick={() => setShowGenreDropdown((v) => !v)}
-                  className={`input py-1 text-xs w-44 text-left flex items-center justify-between gap-2 ${filterGenres.size > 0 ? "border-accent text-white" : ""}`}
-                >
-                  <span className="truncate">
-                    {filterGenres.size === 0
-                      ? "Alle genres"
-                      : filterGenres.size === 1
-                      ? [...filterGenres][0]
-                      : `${filterGenres.size} genres`}
-                  </span>
-                  <span className="text-border shrink-0">▾</span>
-                </button>
+              <div className="relative" ref={genreDropdownRef}>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs text-muted">Genre</label>
+                  <button
+                    onClick={() => { setShowGenreDropdown(false); setGenreSearch(""); setShowGenreManager(true); }}
+                    title="Beheer zichtbare genres"
+                    className="text-muted hover:text-white transition-colors"
+                  >
+                    <Settings2 size={12} />
+                  </button>
+                </div>
+                <div className={`input py-1 text-xs w-44 flex items-center gap-1 ${filterGenres.size > 0 ? "border-accent" : ""}`}>
+                  <input
+                    className="bg-transparent outline-none flex-1 min-w-0 placeholder-muted"
+                    placeholder={
+                      filterGenres.size === 0
+                        ? "Alle genres"
+                        : filterGenres.size === 1
+                        ? [...filterGenres][0]
+                        : `${filterGenres.size} genres`
+                    }
+                    value={genreSearch}
+                    onFocus={() => setShowGenreDropdown(true)}
+                    onChange={(e) => { setGenreSearch(e.target.value); setShowGenreDropdown(true); }}
+                  />
+                  <span
+                    className="text-border shrink-0 cursor-pointer select-none"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setShowGenreDropdown((v) => { if (v) setGenreSearch(""); return !v; });
+                    }}
+                  >▾</span>
+                </div>
                 {showGenreDropdown && (
                   <div className="absolute top-full left-0 mt-1 bg-surface border border-border rounded-lg shadow-xl z-30 w-52 max-h-64 overflow-y-auto">
                     {filterGenres.size > 0 && (
                       <button
-                        onClick={() => { setFilterGenres(new Set()); }}
+                        onClick={() => setFilterGenres(new Set())}
                         className="w-full text-left px-3 py-2 text-xs text-accent hover:bg-card border-b border-border"
                       >
                         Wis selectie ({filterGenres.size})
                       </button>
                     )}
-                    {genres.map((g) => (
-                      <label
-                        key={g}
-                        className="flex items-center gap-2.5 px-3 py-2 hover:bg-card cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={filterGenres.has(g)}
-                          onChange={() => toggleGenre(g)}
-                          className="accent-accent w-3.5 h-3.5 shrink-0"
-                        />
-                        <span className="text-xs capitalize">{g}</span>
-                      </label>
-                    ))}
+                    {activeGenres
+                      .filter((g) => !genreSearch || g.toLowerCase().includes(genreSearch.toLowerCase()))
+                      .map((g) => (
+                        <label
+                          key={g}
+                          className="flex items-center gap-2.5 px-3 py-2 hover:bg-card cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filterGenres.has(g)}
+                            onChange={() => toggleGenre(g)}
+                            className="accent-accent w-3.5 h-3.5 shrink-0"
+                          />
+                          <span className="text-xs capitalize">{g}</span>
+                        </label>
+                      ))}
+                    {genreSearch && !activeGenres.some((g) => g.toLowerCase().includes(genreSearch.toLowerCase())) && (
+                      <p className="px-3 py-2 text-xs text-muted">Geen resultaten</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -496,6 +558,64 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
           selectedAlbums={selectedAlbums}
           onClose={() => setShowPlaylistModal(false)}
         />
+      )}
+
+      {/* Genre manager modal */}
+      {showGenreManager && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowGenreManager(false)}
+        >
+          <div
+            className="bg-surface border border-border rounded-xl shadow-2xl w-96 max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <h2 className="text-sm font-semibold">Genres in filterdropdown</h2>
+              <button onClick={() => setShowGenreManager(false)} className="text-muted hover:text-white transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-xs text-muted px-4 pt-3 pb-1">
+              {visibleGenres === null
+                ? "Alle genres worden getoond. Deselecteer genres om de lijst te beperken."
+                : visibleGenres.size === 0
+                ? "Geen genres geselecteerd — de dropdown is leeg."
+                : `${visibleGenres.size} van ${genres.length} genres zichtbaar in de dropdown.`}
+            </p>
+            <div className="flex gap-2 px-4 py-2 border-b border-border">
+              <button
+                onClick={() => setAllVisible(true)}
+                className="text-xs text-accent hover:underline"
+              >
+                Alles selecteren
+              </button>
+              <span className="text-muted text-xs">·</span>
+              <button
+                onClick={() => setAllVisible(false)}
+                className="text-xs text-accent hover:underline"
+              >
+                Alles deselecteren
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {genres.map((g) => (
+                <label
+                  key={g}
+                  className="flex items-center gap-2.5 px-4 py-2 hover:bg-card cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={visibleGenres === null || visibleGenres.has(g)}
+                    onChange={() => toggleVisibleGenre(g)}
+                    className="accent-accent w-3.5 h-3.5 shrink-0"
+                  />
+                  <span className="text-xs capitalize">{g}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Fullscreen cover overlay on click */}
