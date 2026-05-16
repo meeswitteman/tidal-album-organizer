@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, ListMusic, Search, SlidersHorizontal, X, Download, Sparkles, CheckSquare, ChevronUp, ChevronDown, Settings2 } from "lucide-react";
-import { getAlbums, syncAlbums, reimportAlbums, getTags, getGenres, startEnrichGenres, cancelEnrichGenres, getEnrichStatus } from "../api/client";
+import { getAlbums, syncAlbums, reimportAlbums, getTags, getGenres, getPAStyles, getPACountries, startEnrichGenres, cancelEnrichGenres, getEnrichStatus } from "../api/client";
 import { AlbumCard } from "../components/AlbumCard";
 import { AlbumDetail } from "../components/AlbumDetail";
 import { PlaylistModal } from "../components/PlaylistModal";
@@ -64,6 +64,8 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
     return parsed === null ? null : new Set<string>(parsed);
   });
   const [filterDolbyAtmos, setFilterDolbyAtmos] = useState(false);
+  const [filterPAStyle, setFilterPAStyle] = useState("");
+  const [filterPACountry, setFilterPACountry] = useState("");
   const [zoomedCover, setZoomedCover] = useState<string | null>(null);
   const [enrichRunning, setEnrichRunning] = useState(false);
   const [enrichCancelling, setEnrichCancelling] = useState(false);
@@ -73,7 +75,7 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
   const effectiveYearTo   = searchYear ? parseInt(searchYear) : yearTo   ? parseInt(yearTo)   : undefined;
 
   const { data: albums = [], isLoading } = useQuery({
-    queryKey: ["albums", searchTitle, searchArtist, searchYear, filterTagId, yearFrom, yearTo, [...filterGenres].sort().join(","), filterDolbyAtmos, sortBy, sortDir],
+    queryKey: ["albums", searchTitle, searchArtist, searchYear, filterTagId, yearFrom, yearTo, [...filterGenres].sort().join(","), filterDolbyAtmos, filterPAStyle, filterPACountry, sortBy, sortDir],
     queryFn: () =>
       getAlbums({
         title: searchTitle || undefined,
@@ -83,6 +85,8 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
         year_to: effectiveYearTo,
         genre: filterGenres.size > 0 ? [...filterGenres] : undefined,
         dolby_atmos: filterDolbyAtmos || undefined,
+        pa_style: filterPAStyle || undefined,
+        pa_country: filterPACountry || undefined,
         sort_by: sortBy,
         sort_dir: sortDir,
       }),
@@ -92,6 +96,8 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
 
   const { data: tags = [] } = useQuery({ queryKey: ["tags"], queryFn: getTags });
   const { data: genres = [] } = useQuery({ queryKey: ["genres"], queryFn: getGenres });
+  const { data: paStyles = [] } = useQuery({ queryKey: ["pa-styles"], queryFn: getPAStyles });
+  const { data: paCountries = [] } = useQuery({ queryKey: ["pa-countries"], queryFn: getPACountries });
 
   const sync = useMutation({
     mutationFn: syncAlbums,
@@ -144,7 +150,7 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
     }
   };
 
-  const hasFilters = !!searchTitle || !!searchArtist || !!searchYear || filterTagId !== null || !!yearFrom || !!yearTo || filterGenres.size > 0 || filterDolbyAtmos;
+  const hasFilters = !!searchTitle || !!searchArtist || !!searchYear || filterTagId !== null || !!yearFrom || !!yearTo || filterGenres.size > 0 || filterDolbyAtmos || !!filterPAStyle || !!filterPACountry;
 
   const resetFilters = () => {
     setSearchTitle("");
@@ -155,6 +161,8 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
     setYearTo("");
     setFilterGenres(new Set());
     setFilterDolbyAtmos(false);
+    setFilterPAStyle("");
+    setFilterPACountry("");
   };
 
   const toggleGenre = (g: string) => setFilterGenres((prev) => {
@@ -446,6 +454,36 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
                 Dolby Atmos
               </button>
             </div>
+            {paStyles.length > 0 && (
+              <div>
+                <label className="text-xs text-muted block mb-1">PA Stijl</label>
+                <select
+                  className={`input py-1 text-xs w-44 ${filterPAStyle ? "border-accent" : ""}`}
+                  value={filterPAStyle}
+                  onChange={(e) => setFilterPAStyle(e.target.value)}
+                >
+                  <option value="">Alle stijlen</option>
+                  {paStyles.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {paCountries.length > 0 && (
+              <div>
+                <label className="text-xs text-muted block mb-1">PA Land</label>
+                <select
+                  className={`input py-1 text-xs w-40 ${filterPACountry ? "border-accent" : ""}`}
+                  value={filterPACountry}
+                  onChange={(e) => setFilterPACountry(e.target.value)}
+                >
+                  <option value="">Alle landen</option>
+                  {paCountries.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         )}
 

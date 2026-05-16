@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, func
 from typing import List, Optional
 from datetime import datetime
 from ..database import get_db, SessionLocal
@@ -222,6 +222,32 @@ def get_all_genres(db: Session = Depends(get_db)):
     return sorted(genres_set)
 
 
+@router.get("/pa-styles", response_model=List[str])
+def get_pa_styles(db: Session = Depends(get_db)):
+    rows = (
+        db.query(ProgArchivesArtist.style)
+        .join(Album, func.lower(Album.artist) == ProgArchivesArtist.name_lower)
+        .filter(ProgArchivesArtist.style.isnot(None))
+        .distinct()
+        .order_by(ProgArchivesArtist.style)
+        .all()
+    )
+    return [r[0] for r in rows if r[0]]
+
+
+@router.get("/pa-countries", response_model=List[str])
+def get_pa_countries(db: Session = Depends(get_db)):
+    rows = (
+        db.query(ProgArchivesArtist.country)
+        .join(Album, func.lower(Album.artist) == ProgArchivesArtist.name_lower)
+        .filter(ProgArchivesArtist.country.isnot(None))
+        .distinct()
+        .order_by(ProgArchivesArtist.country)
+        .all()
+    )
+    return [r[0] for r in rows if r[0]]
+
+
 @router.get("", response_model=List[AlbumResponse])
 def list_albums(
     tag: Optional[List[int]] = Query(default=None),
@@ -231,12 +257,21 @@ def list_albums(
     title: Optional[str] = None,
     genre: Optional[List[str]] = Query(default=None),
     dolby_atmos: bool = False,
+    pa_style: Optional[str] = None,
+    pa_country: Optional[str] = None,
     sort_by: Optional[str] = "artist",
     sort_dir: Optional[str] = "asc",
     db: Session = Depends(get_db),
 ):
     from sqlalchemy import or_
     q = db.query(Album)
+
+    if pa_style or pa_country:
+        q = q.join(ProgArchivesArtist, func.lower(Album.artist) == ProgArchivesArtist.name_lower)
+        if pa_style:
+            q = q.filter(ProgArchivesArtist.style == pa_style)
+        if pa_country:
+            q = q.filter(ProgArchivesArtist.country == pa_country)
 
     if tag:
         for t in tag:

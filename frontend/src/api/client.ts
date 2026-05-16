@@ -35,10 +35,14 @@ export const getAlbums = (params?: {
   title?: string;
   genre?: string[];
   dolby_atmos?: boolean;
+  pa_style?: string;
+  pa_country?: string;
   sort_by?: string;
   sort_dir?: string;
 }) => api.get<Album[]>("/albums", { params }).then((r) => r.data);
 export const getGenres = () => api.get<string[]>("/albums/genres").then((r) => r.data);
+export const getPAStyles = () => api.get<string[]>("/albums/pa-styles").then((r) => r.data);
+export const getPACountries = () => api.get<string[]>("/albums/pa-countries").then((r) => r.data);
 export const startEnrichGenres = () =>
   api.post<{ status: string; total: number; done?: number }>("/albums/enrich-genres").then((r) => r.data);
 export const cancelEnrichGenres = () =>
