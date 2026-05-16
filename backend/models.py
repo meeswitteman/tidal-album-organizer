@@ -45,6 +45,16 @@ class Tag(Base):
     albums = relationship("Album", secondary=album_tags, back_populates="tags")
 
 
+class ProgArchivesArtist(Base):
+    __tablename__ = "progarchives_artists"
+
+    id = Column(Integer, primary_key=True)  # Prog Archives artist ID
+    name = Column(String, nullable=False, index=True)
+    name_lower = Column(String, nullable=False, index=True)  # voor case-insensitive lookup
+    style = Column(String, nullable=True)
+    country = Column(String, nullable=True)
+
+
 class Playlist(Base):
     __tablename__ = "playlists"
 

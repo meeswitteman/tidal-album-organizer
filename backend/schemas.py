@@ -48,6 +48,8 @@ class AlbumDetail(AlbumResponse):
     wikipedia_source: Optional[str] = None
     review_links: Optional[List[dict]] = None
     tracks: Optional[List[dict]] = None
+    progarchives_style: Optional[str] = None
+    progarchives_country: Optional[str] = None
 
 
 class AlbumNotesUpdate(BaseModel):

@@ -10,6 +10,22 @@ from .routers import auth, albums, tags, playlists, albumlists, tidal
 
 Base.metadata.create_all(bind=engine)
 
+# Migration: progarchives_artists tabel aanmaken als die nog niet bestaat
+with engine.connect() as _conn:
+    _tables = sa_inspect(engine).get_table_names()
+    if "progarchives_artists" not in _tables:
+        _conn.execute(text("""
+            CREATE TABLE progarchives_artists (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                name_lower TEXT NOT NULL,
+                style TEXT,
+                country TEXT
+            )
+        """))
+        _conn.execute(text("CREATE INDEX ix_progarchives_artists_name_lower ON progarchives_artists (name_lower)"))
+        _conn.commit()
+
 # Migration: add genres column if missing
 with engine.connect() as _conn:
     _cols = [c["name"] for c in sa_inspect(engine).get_columns("albums")]

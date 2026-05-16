@@ -43,6 +43,8 @@ export interface AlbumDetail extends Album {
   review_links: ReviewLink[] | null;
   genres: string[] | null;
   tracks: Track[] | null;
+  progarchives_style: string | null;
+  progarchives_country: string | null;
 }
 
 export interface Playlist {

@@ -119,14 +119,24 @@ export function AlbumDetail({ albumId, onClose }: Props) {
               </div>
             </div>
 
-            {/* Genres */}
-            {album.genres && album.genres.length > 0 && (
+            {/* Genres + Prog Archives stijl/land */}
+            {(album.genres?.length || album.progarchives_style || album.progarchives_country) && (
               <div className="flex flex-wrap gap-1">
-                {album.genres.map((g) => (
+                {album.genres?.map((g) => (
                   <span key={g} className="px-2 py-0.5 rounded-full text-xs bg-border/30 text-muted border border-border">
                     {g}
                   </span>
                 ))}
+                {album.progarchives_style && (
+                  <span className="px-2 py-0.5 rounded-full text-xs bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                    {album.progarchives_style}
+                  </span>
+                )}
+                {album.progarchives_country && (
+                  <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                    {album.progarchives_country}
+                  </span>
+                )}
               </div>
             )}
 

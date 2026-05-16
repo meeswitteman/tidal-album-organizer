@@ -4,7 +4,7 @@ from sqlalchemy import text
 from typing import List, Optional
 from datetime import datetime
 from ..database import get_db, SessionLocal
-from ..models import Album, Tag
+from ..models import Album, Tag, ProgArchivesArtist
 from ..schemas import AlbumResponse, AlbumDetail, AlbumNotesUpdate, SyncResult, ReimportResult, TagResponse
 from ..services.tidal_service import tidal_service
 from ..services.enrichment_service import get_wikipedia_info, get_musicbrainz_info, get_musicbrainz_url_rels, get_musicbrainz_artist_url_rels, fallback_review_links
@@ -320,6 +320,19 @@ async def get_album(album_id: str, db: Session = Depends(get_db)):
     if mb_links:
         existing = {l["name"] for l in (detail.review_links or [])}
         detail.review_links = (detail.review_links or []) + [l for l in mb_links if l["name"] not in existing]
+
+    if album.artist:
+        pa = db.query(ProgArchivesArtist).filter(
+            ProgArchivesArtist.name_lower == album.artist.lower()
+        ).first()
+        if pa:
+            existing = {l["name"] for l in (detail.review_links or [])}
+            if "Prog Archives (artiest)" not in existing:
+                detail.review_links = (detail.review_links or []) + [
+                    {"name": "Prog Archives (artiest)", "url": f"https://www.progarchives.com/artist.asp?id={pa.id}"}
+                ]
+            detail.progarchives_style = pa.style
+            detail.progarchives_country = pa.country
 
     if album.title and album.artist:
         from urllib.parse import quote_plus
