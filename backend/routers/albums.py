@@ -224,9 +224,16 @@ def get_all_genres(db: Session = Depends(get_db)):
 
 @router.get("/pa-styles", response_model=List[str])
 def get_pa_styles(db: Session = Depends(get_db)):
+    from sqlalchemy import select as sa_select
+    pa_subq = (
+        sa_select(func.min(ProgArchivesArtist.id))
+        .where(ProgArchivesArtist.name_lower == func.lower(Album.artist))
+        .correlate(Album)
+        .scalar_subquery()
+    )
     rows = (
         db.query(ProgArchivesArtist.style)
-        .join(Album, func.lower(Album.artist) == ProgArchivesArtist.name_lower)
+        .join(Album, ProgArchivesArtist.id == pa_subq)
         .filter(ProgArchivesArtist.style.isnot(None))
         .distinct()
         .order_by(ProgArchivesArtist.style)
@@ -237,9 +244,16 @@ def get_pa_styles(db: Session = Depends(get_db)):
 
 @router.get("/pa-countries", response_model=List[str])
 def get_pa_countries(db: Session = Depends(get_db)):
+    from sqlalchemy import select as sa_select
+    pa_subq = (
+        sa_select(func.min(ProgArchivesArtist.id))
+        .where(ProgArchivesArtist.name_lower == func.lower(Album.artist))
+        .correlate(Album)
+        .scalar_subquery()
+    )
     rows = (
         db.query(ProgArchivesArtist.country)
-        .join(Album, func.lower(Album.artist) == ProgArchivesArtist.name_lower)
+        .join(Album, ProgArchivesArtist.id == pa_subq)
         .filter(ProgArchivesArtist.country.isnot(None))
         .distinct()
         .order_by(ProgArchivesArtist.country)
@@ -267,7 +281,14 @@ def list_albums(
     q = db.query(Album)
 
     if pa_style or pa_country:
-        q = q.join(ProgArchivesArtist, func.lower(Album.artist) == ProgArchivesArtist.name_lower)
+        from sqlalchemy import select as sa_select
+        pa_subq = (
+            sa_select(func.min(ProgArchivesArtist.id))
+            .where(ProgArchivesArtist.name_lower == func.lower(Album.artist))
+            .correlate(Album)
+            .scalar_subquery()
+        )
+        q = q.join(ProgArchivesArtist, ProgArchivesArtist.id == pa_subq)
         if pa_style:
             q = q.filter(ProgArchivesArtist.style == pa_style)
         if pa_country:
@@ -359,7 +380,7 @@ async def get_album(album_id: str, db: Session = Depends(get_db)):
     if album.artist:
         pa = db.query(ProgArchivesArtist).filter(
             ProgArchivesArtist.name_lower == album.artist.lower()
-        ).first()
+        ).order_by(ProgArchivesArtist.id).first()
         if pa:
             existing = {l["name"] for l in (detail.review_links or [])}
             if "Prog Archives (artiest)" not in existing:
