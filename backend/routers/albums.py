@@ -321,6 +321,13 @@ async def get_album(album_id: str, db: Session = Depends(get_db)):
         existing = {l["name"] for l in (detail.review_links or [])}
         detail.review_links = (detail.review_links or []) + [l for l in mb_links if l["name"] not in existing]
 
+    if album.title and album.artist:
+        from urllib.parse import quote_plus
+        q = quote_plus(f"het album '{album.title}' van '{album.artist}'")
+        detail.review_links = (detail.review_links or []) + [
+            {"name": "Google", "url": f"https://www.google.com/search?q={q}", "search": True}
+        ]
+
     if tidal_service.is_logged_in():
         try:
             detail.tracks = tidal_service.get_album_tracks(album_id)
