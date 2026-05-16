@@ -312,6 +312,15 @@ async def get_album(album_id: str, db: Session = Depends(get_db)):
     elif album.artist and album.title:
         detail.review_links = fallback_review_links(album.artist, album.title)
 
+    mb_links = []
+    if album.mbid:
+        mb_links.append({"name": "MusicBrainz", "url": f"https://musicbrainz.org/release-group/{album.mbid}"})
+    if album.artist_mbid:
+        mb_links.append({"name": "MusicBrainz (artiest)", "url": f"https://musicbrainz.org/artist/{album.artist_mbid}"})
+    if mb_links:
+        existing = {l["name"] for l in (detail.review_links or [])}
+        detail.review_links = (detail.review_links or []) + [l for l in mb_links if l["name"] not in existing]
+
     if tidal_service.is_logged_in():
         try:
             detail.tracks = tidal_service.get_album_tracks(album_id)
