@@ -318,7 +318,7 @@ def list_albums(
     sort_col = {
         "title": Album.title,
         "year": Album.year,
-        "synced_at": Album.synced_at,
+        "synced_at": Album.added_at,
     }.get(sort_by, Album.artist)
 
     q = q.order_by(sort_col.desc() if sort_dir == "desc" else sort_col.asc())
