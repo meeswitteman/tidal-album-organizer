@@ -237,9 +237,7 @@ def fallback_review_links(artist: str, album: str) -> list:
     """Zoeklinks als MusicBrainz-data nog niet beschikbaar is."""
     from urllib.parse import quote_plus
     q = quote_plus(f"{artist} {album}")
-    qa = quote_plus(artist)
     return [
         {"name": "AllMusic", "url": f"https://www.allmusic.com/search/albums/{q}", "search": True},
         {"name": "Rate Your Music", "url": f"https://rateyourmusic.com/search?searchtype=l&searchterm={q}", "search": True},
-        {"name": "Prog Archives", "url": f"https://www.progarchives.com/search.asp?action=progresults&type=1&key={qa}", "search": True},
     ]
