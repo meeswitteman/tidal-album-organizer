@@ -61,11 +61,17 @@ async def _do_enrich(album_ids: list):
                     just_got_artist_mbid = not artist_mbid_known and bool(artist_mbid)
 
                     if mbid and (album.review_links is None or just_got_artist_mbid):
-                        links = await get_musicbrainz_url_rels(mbid)
-                        if _cancelled():
-                            break
+                        if album.review_links is None:
+                            links = await get_musicbrainz_url_rels(mbid)
+                            if _cancelled():
+                                break
+                            if artist_mbid:
+                                await _sleep_cancellable(1.1)
+                        else:
+                            # review_links al gevuld: sla album-call over, gebruik bestaande links
+                            links = list(album.review_links)
+
                         if artist_mbid:
-                            await _sleep_cancellable(1.1)
                             if _cancelled():
                                 break
                             artist_links = await get_musicbrainz_artist_url_rels(artist_mbid)
