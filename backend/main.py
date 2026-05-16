@@ -6,7 +6,7 @@ from pathlib import Path
 from sqlalchemy import text, inspect as sa_inspect
 from .database import engine
 from .models import Base
-from .routers import auth, albums, tags, playlists, albumlists, tidal
+from .routers import auth, albums, tags, playlists, albumlists, tidal, progarchives
 
 Base.metadata.create_all(bind=engine)
 
@@ -63,6 +63,7 @@ app.include_router(tags.router, prefix="/api")
 app.include_router(playlists.router, prefix="/api")
 app.include_router(albumlists.router, prefix="/api")
 app.include_router(tidal.router, prefix="/api")
+app.include_router(progarchives.router, prefix="/api")
 
 # Serve built React app — works both in dev and as frozen exe
 if getattr(sys, "frozen", False):

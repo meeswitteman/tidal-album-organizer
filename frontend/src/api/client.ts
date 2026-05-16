@@ -43,6 +43,14 @@ export const getAlbums = (params?: {
 export const getGenres = () => api.get<string[]>("/albums/genres").then((r) => r.data);
 export const getPAStyles = () => api.get<string[]>("/albums/pa-styles").then((r) => r.data);
 export const getPACountries = () => api.get<string[]>("/albums/pa-countries").then((r) => r.data);
+export const getPAStatus = () => api.get<{ count: number }>("/progarchives/status").then((r) => r.data);
+export const importPAFile = (file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post<{ imported: number }>("/progarchives/import", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  }).then((r) => r.data);
+};
 export const startEnrichGenres = () =>
   api.post<{ status: string; total: number; done?: number }>("/albums/enrich-genres").then((r) => r.data);
 export const cancelEnrichGenres = () =>

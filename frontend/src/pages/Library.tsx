@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, ListMusic, Search, SlidersHorizontal, X, Download, Sparkles, CheckSquare, ChevronUp, ChevronDown, Settings2 } from "lucide-react";
-import { getAlbums, syncAlbums, reimportAlbums, getTags, getGenres, getPAStyles, getPACountries, startEnrichGenres, cancelEnrichGenres, getEnrichStatus } from "../api/client";
+import { getAlbums, syncAlbums, reimportAlbums, getTags, getGenres, getPAStyles, getPACountries, getPAStatus, importPAFile, startEnrichGenres, cancelEnrichGenres, getEnrichStatus } from "../api/client";
 import { AlbumCard } from "../components/AlbumCard";
 import { AlbumDetail } from "../components/AlbumDetail";
 import { PlaylistModal } from "../components/PlaylistModal";
@@ -66,6 +66,9 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
   const [filterDolbyAtmos, setFilterDolbyAtmos] = useState(false);
   const [filterPAStyle, setFilterPAStyle] = useState("");
   const [filterPACountry, setFilterPACountry] = useState("");
+  const [paImporting, setPAImporting] = useState(false);
+  const [paImportResult, setPAImportResult] = useState<string | null>(null);
+  const paFileRef = useRef<HTMLInputElement>(null);
   const [zoomedCover, setZoomedCover] = useState<string | null>(null);
   const [enrichRunning, setEnrichRunning] = useState(false);
   const [enrichCancelling, setEnrichCancelling] = useState(false);
@@ -98,6 +101,26 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
   const { data: genres = [] } = useQuery({ queryKey: ["genres"], queryFn: getGenres });
   const { data: paStyles = [] } = useQuery({ queryKey: ["pa-styles"], queryFn: getPAStyles });
   const { data: paCountries = [] } = useQuery({ queryKey: ["pa-countries"], queryFn: getPACountries });
+  const { data: paStatus } = useQuery({ queryKey: ["pa-status"], queryFn: getPAStatus });
+
+  const handlePAImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPAImporting(true);
+    setPAImportResult(null);
+    try {
+      const result = await importPAFile(file);
+      setPAImportResult(`${result.imported} artiesten geïmporteerd`);
+      qc.invalidateQueries({ queryKey: ["pa-styles"] });
+      qc.invalidateQueries({ queryKey: ["pa-countries"] });
+      qc.invalidateQueries({ queryKey: ["pa-status"] });
+    } catch {
+      setPAImportResult("Importfout — controleer het bestand");
+    } finally {
+      setPAImporting(false);
+      if (paFileRef.current) paFileRef.current.value = "";
+    }
+  };
 
   const sync = useMutation({
     mutationFn: syncAlbums,
@@ -336,6 +359,17 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
               : "Genres ophalen"}
           </button>
 
+          <input ref={paFileRef} type="file" accept=".html" className="hidden" onChange={handlePAImport} />
+          <button
+            onClick={() => paFileRef.current?.click()}
+            disabled={paImporting}
+            className="btn-ghost"
+            title={`Prog Archives artiestlijst importeren${paStatus?.count ? ` (${paStatus.count} artiesten)` : ""}`}
+          >
+            <span className="text-xs font-bold text-purple-400">PA</span>
+            {paImporting ? "Importeren..." : "Importeer"}
+          </button>
+
           {selectedIds.size > 0 && (
             <>
               <button onClick={() => setShowPlaylistModal(true)} className="btn-primary">
@@ -515,6 +549,12 @@ export function Library({ activeAlbumId, onSetActiveAlbum: setActiveAlbumId }: L
             {sync.isSuccess && newAlbumIds.size === 0 && sync.data && sync.data.added === 0 && (
               <span className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-xs text-accent">
                 Sync: {sync.data.updated} bijgewerkt, geen nieuwe albums
+              </span>
+            )}
+
+            {paImportResult && (
+              <span className="px-3 py-1 bg-purple-500/10 border border-purple-500/30 rounded-lg text-xs text-purple-300">
+                PA: {paImportResult}
               </span>
             )}
 
