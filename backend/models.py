@@ -26,6 +26,7 @@ class Album(Base):
     genres = Column(JSON, nullable=True)
     audio_modes = Column(JSON, nullable=True)
     mbid = Column(String, nullable=True)
+    artist_mbid = Column(String, nullable=True)
     review_links = Column(JSON, nullable=True)
     notes = Column(Text, default="")
     added_at = Column(DateTime, default=datetime.utcnow)

@@ -181,10 +181,34 @@ async def get_musicbrainz_info(artist: str, album: str) -> dict:
                     g = groups[0]
                     genres = [x["name"] for x in g.get("genres", [])]
                     tags = [x["name"] for x in g.get("tags", [])]
-                    return {"genres": (genres or tags)[:6], "mbid": g.get("id")}
+                    credits = g.get("artist-credit", [])
+                    artist_mbid = credits[0]["artist"]["id"] if credits else None
+                    return {"genres": (genres or tags)[:6], "mbid": g.get("id"), "artist_mbid": artist_mbid}
         except Exception:
             pass
     return {}
+
+
+async def get_musicbrainz_artist_url_rels(artist_mbid: str) -> list:
+    """Haal review/muziekdatabase links op voor een artiest via MusicBrainz URL-relaties."""
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            resp = await client.get(
+                f"{MUSICBRAINZ_API}/artist/{artist_mbid}",
+                params={"inc": "url-rels", "fmt": "json"},
+                headers={"User-Agent": USER_AGENT},
+            )
+            if resp.status_code == 200:
+                links = []
+                for rel in resp.json().get("relations", []):
+                    rel_type = rel.get("type", "").lower()
+                    url = rel.get("url", {}).get("resource", "")
+                    if rel_type in _REVIEW_SITES and url:
+                        links.append({"name": _REVIEW_SITES[rel_type] + " (artiest)", "url": url})
+                return links
+    except Exception:
+        pass
+    return []
 
 
 async def get_musicbrainz_url_rels(mbid: str) -> list:

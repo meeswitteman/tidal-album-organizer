@@ -28,6 +28,9 @@ with engine.connect() as _conn:
     if "artist_id" not in _cols:
         _conn.execute(text("ALTER TABLE albums ADD COLUMN artist_id TEXT"))
         _conn.commit()
+    if "artist_mbid" not in _cols:
+        _conn.execute(text("ALTER TABLE albums ADD COLUMN artist_mbid TEXT"))
+        _conn.commit()
 
 app = FastAPI(title="Tidal Organizer", version="0.1.0")
 

@@ -7,7 +7,7 @@ from ..database import get_db, SessionLocal
 from ..models import Album, Tag
 from ..schemas import AlbumResponse, AlbumDetail, AlbumNotesUpdate, SyncResult, ReimportResult, TagResponse
 from ..services.tidal_service import tidal_service
-from ..services.enrichment_service import get_wikipedia_info, get_musicbrainz_info, get_musicbrainz_url_rels, fallback_review_links
+from ..services.enrichment_service import get_wikipedia_info, get_musicbrainz_info, get_musicbrainz_url_rels, get_musicbrainz_artist_url_rels, fallback_review_links
 import asyncio
 
 router = APIRouter(prefix="/albums", tags=["albums"])
@@ -37,8 +37,9 @@ async def _do_enrich(album_ids: list):
             if album and album.artist and album.title:
                 try:
                     mbid = album.mbid
+                    artist_mbid_known = album.artist_mbid is not None
 
-                    if not album.genres or not mbid:
+                    if not album.genres or not mbid or not artist_mbid_known:
                         mb = await get_musicbrainz_info(album.artist, album.title)
                         if _cancelled():
                             break
@@ -47,16 +48,31 @@ async def _do_enrich(album_ids: list):
                         mbid = mb.get("mbid") or mbid
                         if mbid:
                             album.mbid = mbid
+                        if not artist_mbid_known:
+                            # "" als sentinel: geprobeerd maar niet gevonden
+                            album.artist_mbid = mb.get("artist_mbid") or ""
                         db.commit()
                         await _sleep_cancellable(1.1)
 
                     if _cancelled():
                         break
 
-                    if mbid and album.review_links is None:
+                    artist_mbid = album.artist_mbid if album.artist_mbid else None
+                    just_got_artist_mbid = not artist_mbid_known and bool(artist_mbid)
+
+                    if mbid and (album.review_links is None or just_got_artist_mbid):
                         links = await get_musicbrainz_url_rels(mbid)
                         if _cancelled():
                             break
+                        if artist_mbid:
+                            await _sleep_cancellable(1.1)
+                            if _cancelled():
+                                break
+                            artist_links = await get_musicbrainz_artist_url_rels(artist_mbid)
+                            existing_names = {l["name"] for l in links}
+                            for al in artist_links:
+                                if al["name"] not in existing_names:
+                                    links.append(al)
                         album.review_links = links or []
                         db.commit()
                         await _sleep_cancellable(1.1)
@@ -170,7 +186,7 @@ async def enrich_genres(background_tasks: BackgroundTasks, db: Session = Depends
     from sqlalchemy import or_
     albums = db.query(Album.id).filter(
         Album.artist.isnot(None),
-        or_(Album.genres.is_(None), Album.review_links.is_(None)),
+        or_(Album.genres.is_(None), Album.review_links.is_(None), Album.artist_mbid.is_(None)),
     ).all()
     album_ids = [a.id for a in albums]
     _enrich_status.update({"running": True, "done": 0, "total": len(album_ids)})
