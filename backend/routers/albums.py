@@ -224,10 +224,13 @@ def get_all_genres(db: Session = Depends(get_db)):
 
 @router.get("/pa-styles", response_model=List[str])
 def get_pa_styles(db: Session = Depends(get_db)):
-    from sqlalchemy import select as sa_select
+    from sqlalchemy import select as sa_select, or_
     pa_subq = (
         sa_select(func.min(ProgArchivesArtist.id))
-        .where(ProgArchivesArtist.name_lower == func.lower(Album.artist))
+        .where(or_(
+            ProgArchivesArtist.name_lower == func.lower(Album.artist),
+            ProgArchivesArtist.name_lower.like(func.lower(Album.artist) + " %"),
+        ))
         .correlate(Album)
         .scalar_subquery()
     )
@@ -244,10 +247,13 @@ def get_pa_styles(db: Session = Depends(get_db)):
 
 @router.get("/pa-countries", response_model=List[str])
 def get_pa_countries(db: Session = Depends(get_db)):
-    from sqlalchemy import select as sa_select
+    from sqlalchemy import select as sa_select, or_
     pa_subq = (
         sa_select(func.min(ProgArchivesArtist.id))
-        .where(ProgArchivesArtist.name_lower == func.lower(Album.artist))
+        .where(or_(
+            ProgArchivesArtist.name_lower == func.lower(Album.artist),
+            ProgArchivesArtist.name_lower.like(func.lower(Album.artist) + " %"),
+        ))
         .correlate(Album)
         .scalar_subquery()
     )
@@ -281,10 +287,13 @@ def list_albums(
     q = db.query(Album)
 
     if pa_style or pa_country:
-        from sqlalchemy import select as sa_select
+        from sqlalchemy import select as sa_select, or_
         pa_subq = (
             sa_select(func.min(ProgArchivesArtist.id))
-            .where(ProgArchivesArtist.name_lower == func.lower(Album.artist))
+            .where(or_(
+                ProgArchivesArtist.name_lower == func.lower(Album.artist),
+                ProgArchivesArtist.name_lower.like(func.lower(Album.artist) + " %"),
+            ))
             .correlate(Album)
             .scalar_subquery()
         )
@@ -378,9 +387,14 @@ async def get_album(album_id: str, db: Session = Depends(get_db)):
         detail.review_links = (detail.review_links or []) + [l for l in mb_links if l["name"] not in existing]
 
     if album.artist:
+        artist_lower = album.artist.lower()
         pa = db.query(ProgArchivesArtist).filter(
-            ProgArchivesArtist.name_lower == album.artist.lower()
+            ProgArchivesArtist.name_lower == artist_lower
         ).order_by(ProgArchivesArtist.id).first()
+        if not pa:
+            pa = db.query(ProgArchivesArtist).filter(
+                ProgArchivesArtist.name_lower.like(artist_lower + " %")
+            ).order_by(ProgArchivesArtist.id).first()
         if pa:
             existing = {l["name"] for l in (detail.review_links or [])}
             if "Prog Archives (artiest)" not in existing:
