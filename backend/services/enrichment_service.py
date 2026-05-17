@@ -37,6 +37,17 @@ def _is_relevant(found_title: str, *terms: str) -> bool:
     return any(w in found_lower for w in significant)
 
 
+def _extract_mentions_artist(extract: str, artist: str) -> bool:
+    """Controleert of de Wikipedia-samenvatting de artiestsnaam vermeldt.
+    Voorkomt dat een albumzoekopdracht een pagina van een andere artiest retourneert.
+    """
+    significant = re.findall(r'\b[a-z]{4,}\b', artist.lower())
+    if not significant:
+        return True
+    extract_lower = extract.lower()
+    return any(w in extract_lower for w in significant)
+
+
 async def _search_wikipedia_title(client: httpx.AsyncClient, query: str) -> Optional[str]:
     """Zoekt op Wikipedia en geeft de titel van het eerste resultaat terug."""
     try:
@@ -135,7 +146,7 @@ async def get_wikipedia_info(artist: str, album: str) -> dict:
             found_title = await _search_wikipedia_title(client, query)
             if found_title and _is_relevant(found_title, base_album, album, normalized, artist):
                 result = await _fetch_wikipedia(client, found_title)
-                if result:
+                if result and _extract_mentions_artist(result["summary"], artist):
                     return {**result, "source": "album"}
 
         # 3. Artiestpagina's als fallback
