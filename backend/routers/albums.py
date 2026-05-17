@@ -395,6 +395,22 @@ async def get_album(album_id: str, db: Session = Depends(get_db)):
             pa = db.query(ProgArchivesArtist).filter(
                 ProgArchivesArtist.name_lower.like(artist_lower + " %")
             ).order_by(ProgArchivesArtist.id).first()
+        if not pa:
+            # Probeer "The X" → "X, The"
+            parts = album.artist.split()
+            if len(parts) >= 2 and parts[0].lower() == "the":
+                the_last = " ".join(parts[1:]).lower() + ", the"
+                pa = db.query(ProgArchivesArtist).filter(
+                    ProgArchivesArtist.name_lower == the_last
+                ).order_by(ProgArchivesArtist.id).first()
+        if not pa:
+            # Probeer "Voornaam Achternaam" → "Achternaam, Voornaam"
+            parts = album.artist.split()
+            if len(parts) == 2:
+                reversed_name = f"{parts[1]}, {parts[0]}".lower()
+                pa = db.query(ProgArchivesArtist).filter(
+                    ProgArchivesArtist.name_lower == reversed_name
+                ).order_by(ProgArchivesArtist.id).first()
         if pa:
             existing = {l["name"] for l in (detail.review_links or [])}
             if "Prog Archives (artiest)" not in existing:
