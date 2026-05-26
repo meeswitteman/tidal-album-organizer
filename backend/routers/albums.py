@@ -423,8 +423,10 @@ async def get_album(album_id: str, db: Session = Depends(get_db)):
     if album.title and album.artist:
         from urllib.parse import quote_plus
         q = quote_plus(f"het album '{album.title}' van '{album.artist}'")
+        q_yt = quote_plus(f"{album.artist} {album.title}")
         detail.review_links = (detail.review_links or []) + [
-            {"name": "Google", "url": f"https://www.google.com/search?q={q}", "search": True}
+            {"name": "Google", "url": f"https://www.google.com/search?q={q}", "search": True},
+            {"name": "YouTube", "url": f"https://www.youtube.com/results?search_query={q_yt}", "search": True},
         ]
 
     if tidal_service.is_logged_in():

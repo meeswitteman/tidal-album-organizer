@@ -251,4 +251,5 @@ def fallback_review_links(artist: str, album: str) -> list:
     return [
         {"name": "AllMusic", "url": f"https://www.allmusic.com/search/albums/{q}", "search": True},
         {"name": "Rate Your Music", "url": f"https://rateyourmusic.com/search?searchtype=l&searchterm={q}", "search": True},
+        {"name": "YouTube", "url": f"https://www.youtube.com/results?search_query={q}", "search": True},
     ]
