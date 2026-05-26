@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Upload, ArrowUpDown, Plus, Trash2, Music,
@@ -11,6 +11,7 @@ import {
 } from "../api/client";
 import { AlbumCard } from "../components/AlbumCard";
 import { AlbumDetail } from "../components/AlbumDetail";
+import { ResizableDivider } from "../components/ResizableDivider";
 import type { AlbumListItem, ExportMode, SortMode } from "../types";
 
 interface Props {
@@ -262,6 +263,17 @@ function AddAlbumsModal({ listId, existingIds, onClose }: {
 
 export function AlbumListDetail({ listId, onBack }: Props) {
   const qc = useQueryClient();
+  const [detailWidth, setDetailWidth] = useState(() => {
+    const saved = localStorage.getItem("tao_detail_width");
+    return saved ? (parseInt(saved) || 320) : 320;
+  });
+  const resizeDetail = useCallback((delta: number) => {
+    setDetailWidth((w) => {
+      const next = Math.max(250, Math.min(600, w - delta));
+      localStorage.setItem("tao_detail_width", String(next));
+      return next;
+    });
+  }, []);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeAlbumId, setActiveAlbumId] = useState<string | null>(null);
   const [zoomedCover, setZoomedCover] = useState<string | null>(null);
@@ -511,9 +523,12 @@ export function AlbumListDetail({ listId, onBack }: Props) {
 
         {/* Detail panel */}
         {activeAlbumId && (
-          <div className="w-80 shrink-0">
-            <AlbumDetail albumId={activeAlbumId} onClose={() => setActiveAlbumId(null)} />
-          </div>
+          <>
+            <ResizableDivider onDelta={resizeDetail} />
+            <div style={{ width: detailWidth }} className="shrink-0">
+              <AlbumDetail albumId={activeAlbumId} onClose={() => setActiveAlbumId(null)} />
+            </div>
+          </>
         )}
       </div>
 
