@@ -1,11 +1,31 @@
+import time
 import tidalapi
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Callable
 from ..data_dir import get_data_dir
 
 SESSION_FILE = get_data_dir() / "tidal_session.json"
 
 _login_future = None
+
+
+def _fetch_page_with_retry(fetch: Callable, offset: int, attempts: int = 4):
+    """Fetch a single paginated page, retrying transient Tidal errors.
+
+    De favorieten-lijst kan duizenden items bevatten, wat tientallen
+    opeenvolgende API-requests betekent. Tidal geeft regelmatig een
+    incidentele 500 terug; zonder retry zou één mislukte pagina de hele
+    import laten falen. Bij blijvende fouten wordt de exception alsnog
+    doorgegeven aan de aanroeper.
+    """
+    last_exc = None
+    for attempt in range(attempts):
+        try:
+            return fetch(offset)
+        except Exception as e:
+            last_exc = e
+            time.sleep(0.5 * (attempt + 1))
+    raise last_exc
 
 
 class TidalService:
@@ -64,7 +84,10 @@ class TidalService:
         offset = 0
         page_size = 50
         while True:
-            page = self.session.user.favorites.albums(limit=page_size, offset=offset)
+            page = _fetch_page_with_retry(
+                lambda o: self.session.user.favorites.albums(limit=page_size, offset=o),
+                offset,
+            )
             result.extend(page)
             if len(page) < page_size:
                 break
@@ -131,7 +154,10 @@ class TidalService:
         offset = 0
         page_size = 50
         while True:
-            tracks = playlist.tracks(limit=page_size, offset=offset)
+            tracks = _fetch_page_with_retry(
+                lambda o: playlist.tracks(limit=page_size, offset=o),
+                offset,
+            )
             for t in tracks:
                 album_id = str(t.album.id)
                 if album_id not in seen:

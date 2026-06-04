@@ -16,6 +16,16 @@ tidal_session.json
 frontend/node_modules/
 frontend/dist/
 
+# PyInstaller build artifacts
+build/
+dist/
+*.spec
+
+# Ad-hoc dev/debug scripts & scraped data (root only)
+/check_*.py
+/inspect_html.py
+/*.html
+
 # IDE & local tooling
 .idea/
 .vscode/
